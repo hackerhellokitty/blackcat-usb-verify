@@ -1,0 +1,15 @@
+# Build output
+flashverify/builddir/
+
+# Compiled binaries
+*.exe
+*.o
+*.obj
+
+# Python
+flashverify/python/venv/
+flashverify/python/__pycache__/
+*.pyc
+
+# Claude session
+.claude/

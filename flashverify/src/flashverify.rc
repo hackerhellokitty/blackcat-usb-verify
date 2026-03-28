@@ -1,0 +1,4 @@
+#include <windows.h>
+
+// embed manifest — Windows จะขอ UAC prompt อัตโนมัติ
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "flashverify.manifest"
