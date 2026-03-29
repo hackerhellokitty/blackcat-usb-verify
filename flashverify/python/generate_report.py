@@ -76,6 +76,14 @@ C_GRAY   = colors.HexColor("#666666")
 C_BLACK  = colors.black
 
 
+VERDICT_TH = {
+    "GENUINE":   "แท้",
+    "WARNING":   "น่าสงสัย",
+    "COUNTERFEIT": "ปลอม",
+    "CANCELLED": "ยกเลิก",
+    "UNKNOWN":   "ไม่ทราบ",
+}
+
 def _verdict_color(verdict: str) -> colors.Color:
     if verdict == "GENUINE":     return C_GREEN
     if verdict == "WARNING":     return C_ORANGE
@@ -151,6 +159,20 @@ def generate(data: dict, out_path: str):
     has_font = _register_fonts()
     st = _styles(has_font)
 
+    verdict = data.get("verdict", "UNKNOWN")
+    is_counterfeit = verdict == "COUNTERFEIT"
+
+    def _draw_watermark(canvas, doc):
+        if not is_counterfeit:
+            return
+        canvas.saveState()
+        canvas.setFont(FONT_BOLD if has_font else "Helvetica-Bold", 96)
+        canvas.setFillColorRGB(0.85, 0.05, 0.05, alpha=0.5)
+        canvas.translate(A4[0] / 2, A4[1] / 2)
+        canvas.rotate(45)
+        canvas.drawCentredString(0, 0, "ปลอม")
+        canvas.restoreState()
+
     doc = SimpleDocTemplate(
         out_path,
         pagesize=A4,
@@ -165,13 +187,12 @@ def generate(data: dict, out_path: str):
 
     # ── Title ──────────────────────────────────────────────────────────────
     story.append(Paragraph("FlashVerify", st["title"]))
-    story.append(Paragraph("USB / SSD Authenticity Test Report", st["subtitle"]))
+    story.append(Paragraph("รายงานผลการทดสอบความแท้ของ USB / SSD", st["subtitle"]))
     story.append(Spacer(1, 0.3*cm))
     story.append(HRFlowable(width="100%", thickness=1.5, color=C_BLUE))
     story.append(Spacer(1, 0.4*cm))
 
     # ── Verdict banner ─────────────────────────────────────────────────────
-    verdict      = data.get("verdict", "UNKNOWN")
     verdict_col  = _verdict_color(verdict)
     ok_chunks    = data.get("ok_chunks",   0)
     total_chunks = data.get("total_chunks",1)
@@ -184,21 +205,22 @@ def generate(data: dict, out_path: str):
         fontSize=28, leading=34, alignment=1,
         textColor=verdict_col,
     )
-    story.append(Paragraph(verdict, banner_style))
-    sub = f"{ok_chunks} / {total_chunks} chunks OK ({pct_ok:.1f}%)   |   {fail_chunks} failed"
+    verdict_th = VERDICT_TH.get(verdict, verdict)
+    story.append(Paragraph(verdict_th, banner_style))
+    sub = f"ผ่าน {ok_chunks} / {total_chunks} ชิ้นส่วน ({pct_ok:.1f}%)   |   ผิดพลาด {fail_chunks} ชิ้นส่วน"
     story.append(Paragraph(sub, st["subtitle"]))
     story.append(Spacer(1, 0.5*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=C_GRAY))
     story.append(Spacer(1, 0.4*cm))
 
     # ── Report metadata ────────────────────────────────────────────────────
-    story.append(Paragraph("Report Information", st["heading"]))
+    story.append(Paragraph("ข้อมูลรายงาน", st["heading"]))
     story.append(Spacer(1, 0.2*cm))
     meta_data = [
-        ["Report ID",   data.get("report_id",    "—")],
-        ["Date",        data.get("report_date",   "—")],
-        ["Time",        data.get("report_time",   "—")],
-        ["Software",    data.get("software_ver",  "—")],
+        ["รหัสรายงาน",  data.get("report_id",    "—")],
+        ["วันที่",       data.get("report_date",   "—")],
+        ["เวลา",        data.get("report_time",   "—")],
+        ["ซอฟต์แวร์",   data.get("software_ver",  "—")],
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, W - 4*cm])
     meta_table.setStyle(_table_style_base())
@@ -206,13 +228,13 @@ def generate(data: dict, out_path: str):
     story.append(Spacer(1, 0.5*cm))
 
     # ── Device info ────────────────────────────────────────────────────────
-    story.append(Paragraph("Device Information", st["heading"]))
+    story.append(Paragraph("ข้อมูลอุปกรณ์", st["heading"]))
     story.append(Spacer(1, 0.2*cm))
     dev_data = [
-        ["Device Path",   data.get("device_path",   "—")],
-        ["Device Name",   data.get("device_name",   "—")],
-        ["Serial",        data.get("device_serial", "—")],
-        ["Vendor ID",     data.get("vendor_id",     "—")],
+        ["เส้นทางอุปกรณ์",  data.get("device_path",   "—")],
+        ["ชื่ออุปกรณ์",     data.get("device_name",   "—")],
+        ["ซีเรียล",         data.get("device_serial", "—")],
+        ["Vendor ID",       data.get("vendor_id",     "—")],
     ]
     dev_table = Table(dev_data, colWidths=[4*cm, W - 4*cm])
     dev_table.setStyle(_table_style_base())
@@ -220,7 +242,7 @@ def generate(data: dict, out_path: str):
     story.append(Spacer(1, 0.5*cm))
 
     # ── Capacity ───────────────────────────────────────────────────────────
-    story.append(Paragraph("Capacity Analysis", st["heading"]))
+    story.append(Paragraph("การวิเคราะห์ความจุ", st["heading"]))
     story.append(Spacer(1, 0.2*cm))
 
     claimed_gb = data.get("claimed_gb", 0)
@@ -228,9 +250,9 @@ def generate(data: dict, out_path: str):
     cap_diff   = actual_gb - claimed_gb
 
     cap_data = [
-        ["Claimed capacity", f"{claimed_gb:.2f} GB  ({data.get('claimed_bytes',0):,} bytes)"],
-        ["Actual capacity",  f"{actual_gb:.2f} GB  ({data.get('actual_bytes',0):,} bytes)"],
-        ["Difference",       f"{cap_diff:+.2f} GB"],
+        ["ความจุตามฉลาก", f"{claimed_gb:.2f} GB  ({data.get('claimed_bytes',0):,} bytes)"],
+        ["ความจุจริง",    f"{actual_gb:.2f} GB  ({data.get('actual_bytes',0):,} bytes)"],
+        ["ส่วนต่าง",      f"{cap_diff:+.2f} GB"],
     ]
     cap_table = Table(cap_data, colWidths=[5*cm, W - 5*cm])
     ts = _table_style_base()
@@ -243,16 +265,16 @@ def generate(data: dict, out_path: str):
     story.append(Spacer(1, 0.5*cm))
 
     # ── Test results ───────────────────────────────────────────────────────
-    story.append(Paragraph("Test Results", st["heading"]))
+    story.append(Paragraph("ผลการทดสอบ", st["heading"]))
     story.append(Spacer(1, 0.2*cm))
     res_data = [
-        ["Hash algorithm",  data.get("hash_algo",        "SHA-256")],
-        ["Chunk size",      f"{data.get('chunk_size_mb',64)} MB"],
-        ["Total chunks",    str(total_chunks)],
-        ["OK chunks",       str(ok_chunks)],
-        ["Failed chunks",   str(fail_chunks)],
-        ["Write speed",     f"{data.get('write_speed_mbps',0):.1f} MB/s"],
-        ["Read speed",      f"{data.get('read_speed_mbps',0):.1f} MB/s"],
+        ["อัลกอริทึม Hash",     data.get("hash_algo",        "SHA-256")],
+        ["ขนาดชิ้นส่วน",        f"{data.get('chunk_size_mb',64)} MB"],
+        ["จำนวนชิ้นส่วนทั้งหมด", str(total_chunks)],
+        ["ชิ้นส่วนที่ผ่าน",      str(ok_chunks)],
+        ["ชิ้นส่วนที่ผิดพลาด",   str(fail_chunks)],
+        ["ความเร็วเขียน",        f"{data.get('write_speed_mbps',0):.1f} MB/s"],
+        ["ความเร็วอ่าน",         f"{data.get('read_speed_mbps',0):.1f} MB/s"],
     ]
     res_table = Table(res_data, colWidths=[5*cm, W - 5*cm])
     rts = _table_style_base()
@@ -282,9 +304,9 @@ def generate(data: dict, out_path: str):
     # ── Fail samples ───────────────────────────────────────────────────────
     samples = data.get("fail_chunk_samples", [])
     if samples:
-        story.append(Paragraph("Failed Chunk Samples", st["heading"]))
+        story.append(Paragraph("ตัวอย่างชิ้นส่วนที่ผิดพลาด", st["heading"]))
         story.append(Spacer(1, 0.2*cm))
-        hdr = [["#", "Index", "Offset (bytes)", "Expected hash (prefix)"]]
+        hdr = [["#", "ลำดับ", "ตำแหน่ง (bytes)", "Hash ที่คาดหวัง (ย่อ)"]]
         rows = [
             [str(i+1),
              str(s.get("index", "?")),
@@ -323,7 +345,7 @@ def generate(data: dict, out_path: str):
                 _draw_chunk_map(self.canv, 0, self._height,
                                 self.width, self._height, self.chunks)
 
-        story.append(Paragraph("Chunk Map", st["heading"]))
+        story.append(Paragraph("แผนที่ชิ้นส่วน", st["heading"]))
         story.append(Spacer(1, 0.2*cm))
         story.append(ChunkMapFlowable(chunks_raw, W, height=120))
 
@@ -334,7 +356,7 @@ def generate(data: dict, out_path: str):
             fontSize=8, leading=12, textColor=C_GRAY,
         )
         story.append(Paragraph(
-            "■ OK &nbsp;&nbsp; ■ Mismatch &nbsp;&nbsp; ■ Unreadable &nbsp;&nbsp; ■ Written",
+            "■ ผ่าน &nbsp;&nbsp; ■ ผิดพลาด &nbsp;&nbsp; ■ อ่านไม่ได้ &nbsp;&nbsp; ■ เขียนแล้ว",
             legend_style))
         story.append(Spacer(1, 0.5*cm))
 
@@ -342,11 +364,11 @@ def generate(data: dict, out_path: str):
     story.append(HRFlowable(width="100%", thickness=0.5, color=C_GRAY))
     story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph(
-        f"Generated by FlashVerify {data.get('software_ver','1.0.0')} · "
+        f"สร้างโดย FlashVerify {data.get('software_ver','1.0.0')} · "
         f"{data.get('report_date','')} {data.get('report_time','')}",
         st["small"]))
 
-    doc.build(story)
+    doc.build(story, onFirstPage=_draw_watermark, onLaterPages=_draw_watermark)
     print(f"PDF saved: {out_path}")
 
 

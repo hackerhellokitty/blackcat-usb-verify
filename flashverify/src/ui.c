@@ -106,8 +106,8 @@ static gboolean idle_test_done(gpointer data) {
         char msg[256];
         snprintf(msg, sizeof(msg),
             "<span size='x-large' weight='bold' color='gray'>CANCELLED</span>\n"
-            "<span size='small'>OK %zu / %zu  |  Fail %zu  |"
-            "  Write %.1f MB/s  |  Read %.1f MB/s</span>",
+            "<span size='small'>ผ่าน %zu / %zu ชิ้นส่วน  |  ผิดพลาด %zu  |"
+            "  เขียน %.1f MB/s  |  อ่าน %.1f MB/s</span>",
             s->ok_count, s->chunk_count, s->fail_count,
             s->avg_write_mbps, s->avg_read_mbps);
         gtk_label_set_markup(GTK_LABEL(app->verdict_label), msg);
@@ -124,8 +124,8 @@ static gboolean idle_test_done(gpointer data) {
         char msg[256];
         snprintf(msg, sizeof(msg),
             "<span size='xx-large' weight='bold' color='%s'>%s</span>\n"
-            "<span size='small'>OK %zu / %zu  |  Fail %zu  |"
-            "  Write %.1f MB/s  |  Read %.1f MB/s</span>",
+            "<span size='small'>ผ่าน %zu / %zu ชิ้นส่วน  |  ผิดพลาด %zu  |"
+            "  เขียน %.1f MB/s  |  อ่าน %.1f MB/s</span>",
             color, verdict_str(v),
             s->ok_count, s->chunk_count, s->fail_count,
             s->avg_write_mbps, s->avg_read_mbps);
@@ -160,14 +160,14 @@ static gpointer test_thread_func(gpointer data) {
     RawDevice dev = rawio_open_rw(s->device_path);
     if (!rawio_valid(dev)) {
         snprintf(s->error_msg, sizeof(s->error_msg),
-                 "Cannot open device for writing (run as Administrator?)");
+                 "เปิดอุปกรณ์เพื่อเขียนไม่ได้ (กรุณารันในฐานะ Administrator)");
         s->state = STATE_ERROR;
         goto done;
     }
     if (dev.lock_failed) {
         snprintf(s->error_msg, sizeof(s->error_msg),
-                 "Cannot lock drive — close File Explorer / other programs\n"
-                 "that are using this drive, then try again.");
+                 "ล็อก Drive ไม่ได้ — ปิด File Explorer และโปรแกรมอื่น\n"
+                 "ที่ใช้งาน Drive นี้อยู่ แล้วลองใหม่อีกครั้ง");
         rawio_close(dev);
         s->state = STATE_ERROR;
         goto done;
@@ -180,7 +180,7 @@ static gpointer test_thread_func(gpointer data) {
     dev = rawio_open_ro(s->device_path);
     if (!rawio_valid(dev)) {
         snprintf(s->error_msg, sizeof(s->error_msg),
-                 "Cannot open device for reading");
+                 "เปิดอุปกรณ์เพื่ออ่านไม่ได้");
         s->state = STATE_ERROR;
         goto done;
     }
@@ -216,7 +216,7 @@ static void on_warn_response(GtkDialog *dlg, int resp, gpointer user_data) {
 
     /* claimed size — read from preset combo or custom spin */
     {
-        static const double presets_gb[] = { 8,16,32,64,128,256,512,0,1 }; /* 0=custom,last=1TB */
+        static const double presets_gb[] = { 8,16,32,64,128,256,512,1,0 }; /* 0=custom,last=1TB */
         static const int    is_tb[]      = { 0, 0, 0, 0,  0,  0,  0,0,1 };
         int cidx = gtk_combo_box_get_active(GTK_COMBO_BOX(app->claimed_combo));
         if (cidx < 0) cidx = 3; /* default 64 GB */
@@ -243,7 +243,7 @@ static void on_warn_response(GtkDialog *dlg, int resp, gpointer user_data) {
         GtkWidget *e = gtk_message_dialog_new(
             GTK_WINDOW(app->window), GTK_DIALOG_MODAL,
             GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-            "Cannot read device.\nRun FlashVerify as Administrator.");
+            "อ่านอุปกรณ์ไม่ได้\nกรุณารัน FlashVerify ในฐานะ Administrator");
         gtk_window_present(GTK_WINDOW(e));
         g_signal_connect_swapped(e, "response", G_CALLBACK(gtk_window_destroy), e);
         g_free(app->session); app->session = NULL;
@@ -261,8 +261,8 @@ static void on_warn_response(GtkDialog *dlg, int resp, gpointer user_data) {
     /* reset UI */
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(app->write_bar),  0.0);
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(app->verify_bar), 0.0);
-    gtk_label_set_text(GTK_LABEL(app->write_label),  "0 / 0 chunks  —  0.0 MB/s");
-    gtk_label_set_text(GTK_LABEL(app->verify_label), "0 / 0 chunks  —  0.0 MB/s");
+    gtk_label_set_text(GTK_LABEL(app->write_label),  "0 / 0 ชิ้นส่วน  —  0.0 MB/s");
+    gtk_label_set_text(GTK_LABEL(app->verify_label), "0 / 0 ชิ้นส่วน  —  0.0 MB/s");
     gtk_widget_set_visible(app->verdict_label, FALSE);
     gtk_widget_set_visible(app->save_btn,      FALSE);
     gtk_widget_set_sensitive(app->start_btn,   FALSE);
@@ -347,7 +347,7 @@ static void populate_device_dropdown(AppData *app) {
     app->device_count = count;
 
     if (count == 0) {
-        gtk_string_list_append(model, "(No removable devices found)");
+        gtk_string_list_append(model, "(ไม่พบอุปกรณ์USB ที่เชื่อมต่ออยู่  )");
     } else {
         for (int i = 0; i < count; i++) {
             uint64_t bytes = 0;
@@ -408,7 +408,7 @@ static void on_device_selected(GObject *obj, GParamSpec *pspec, gpointer user_da
                  (double)bytes / (1024.0*1024.0*1024.0));
         gtk_label_set_text(GTK_LABEL(app->actual_size_label), buf);
     } else {
-        gtk_label_set_text(GTK_LABEL(app->actual_size_label), "Cannot read");
+        gtk_label_set_text(GTK_LABEL(app->actual_size_label), "อ่านไม่ได้");
     }
 }
 
@@ -420,7 +420,7 @@ static void on_start_clicked(GtkButton *btn, gpointer user_data) {
     if (app->device_count == 0 || (int)idx >= app->device_count) {
         GtkWidget *dlg = gtk_message_dialog_new(GTK_WINDOW(app->window),
             GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-            "Please select a device first.");
+            "กรุณาเลือกอุปกรณ์ก่อน");
         gtk_window_present(GTK_WINDOW(dlg));
         g_signal_connect_swapped(dlg, "response", G_CALLBACK(gtk_window_destroy), dlg);
         return;
@@ -429,8 +429,8 @@ static void on_start_clicked(GtkButton *btn, gpointer user_data) {
     if (is_system_drive(app->device_paths[idx])) {
         GtkWidget *dlg = gtk_message_dialog_new(GTK_WINDOW(app->window),
             GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-            "BLOCKED: This appears to be the system drive.\n"
-            "FlashVerify will not test the OS drive.");
+            "ไม่อนุญาต: ดูเหมือนเป็น Drive ของระบบ\n"
+            "FlashVerify ไม่ทดสอบ Drive ที่ติดตั้ง Windows");
         gtk_window_present(GTK_WINDOW(dlg));
         g_signal_connect_swapped(dlg, "response", G_CALLBACK(gtk_window_destroy), dlg);
         return;
@@ -438,8 +438,8 @@ static void on_start_clicked(GtkButton *btn, gpointer user_data) {
 
     GtkWidget *warn = gtk_message_dialog_new(GTK_WINDOW(app->window),
         GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK_CANCEL,
-        "WARNING: All data on the selected drive will be ERASED.\n\n"
-        "Make sure you selected the correct device.\nContinue?");
+        "คำเตือน: ข้อมูลทั้งหมดใน Drive ที่เลือกจะถูกลบ\n\n"
+        "กรุณาตรวจสอบให้แน่ใจว่าเลือก Drive ถูกต้อง\nดำเนินการต่อ?");
 
     g_object_set_data(G_OBJECT(warn), "dev-idx", GUINT_TO_POINTER(idx));
     g_signal_connect(warn, "response", G_CALLBACK(on_warn_response), app);
@@ -490,7 +490,7 @@ void app_activate(GApplication *gapp, gpointer user_data) {
     AppData *app = g_new0(AppData, 1);
 
     app->window = gtk_application_window_new(GTK_APPLICATION(gapp));
-    gtk_window_set_title(GTK_WINDOW(app->window), "FlashVerify");
+    gtk_window_set_title(GTK_WINDOW(app->window), "Blackcat FlashVerify");
     gtk_window_set_default_size(GTK_WINDOW(app->window), 700, 820);
 
     GtkWidget *scroll = gtk_scrolled_window_new();
@@ -507,23 +507,23 @@ void app_activate(GApplication *gapp, gpointer user_data) {
     GtkWidget *hdr = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(hdr),
         "<span size='xx-large' weight='bold'>FlashVerify</span>\n"
-        "<span size='small' color='gray'>USB / SSD Authenticity Tester</span>");
+        "<span size='small' color='gray'>USB Flash Drive ทดสอบ USB แท้ ปลอม ดี เสีย </span>");
     gtk_label_set_justify(GTK_LABEL(hdr), GTK_JUSTIFY_CENTER);
     gtk_box_append(GTK_BOX(vbox), hdr);
     gtk_box_append(GTK_BOX(vbox), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
 
     /* device row */
-    gtk_box_append(GTK_BOX(vbox), section_label("Device"));
+    gtk_box_append(GTK_BOX(vbox), section_label("อุปกรณ์"));
     GtkWidget *dev_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     app->device_dropdown    = gtk_drop_down_new(NULL, NULL);
-    app->device_refresh_btn = gtk_button_new_with_label("Refresh");
+    app->device_refresh_btn = gtk_button_new_with_label("รีเฟรช");
     gtk_widget_set_hexpand(app->device_dropdown, TRUE);
     gtk_box_append(GTK_BOX(dev_row), app->device_dropdown);
     gtk_box_append(GTK_BOX(dev_row), app->device_refresh_btn);
     gtk_box_append(GTK_BOX(vbox), dev_row);
 
     GtkWidget *sz_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    gtk_box_append(GTK_BOX(sz_row), gtk_label_new("Actual size:"));
+    gtk_box_append(GTK_BOX(sz_row), gtk_label_new("ขนาดจริง:"));
     app->actual_size_label = gtk_label_new("—");
     gtk_widget_set_hexpand(app->actual_size_label, TRUE);
     gtk_label_set_xalign(GTK_LABEL(app->actual_size_label), 0.0f);
@@ -533,7 +533,7 @@ void app_activate(GApplication *gapp, gpointer user_data) {
     gtk_box_append(GTK_BOX(vbox), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
 
     /* claimed capacity */
-    gtk_box_append(GTK_BOX(vbox), section_label("Claimed Capacity"));
+    gtk_box_append(GTK_BOX(vbox), section_label("ความจุที่ระบุ"));
     GtkWidget *cap_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
 
     app->claimed_combo = gtk_combo_box_text_new();
@@ -544,8 +544,8 @@ void app_activate(GApplication *gapp, gpointer user_data) {
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->claimed_combo), "128 GB");
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->claimed_combo), "256 GB");
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->claimed_combo), "512 GB");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->claimed_combo), "Custom...");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->claimed_combo), "1 TB");
+   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->claimed_combo), "1 TB");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->claimed_combo), "กำหนดเอง...");
     gtk_combo_box_set_active(GTK_COMBO_BOX(app->claimed_combo), 3); /* default 64 GB */
 
     app->claimed_spin       = gtk_spin_button_new_with_range(1, 9999, 1);
@@ -557,7 +557,7 @@ void app_activate(GApplication *gapp, gpointer user_data) {
     gtk_widget_set_visible(app->claimed_spin,       FALSE);
     gtk_widget_set_visible(app->claimed_unit_combo, FALSE);
 
-    gtk_box_append(GTK_BOX(cap_row), gtk_label_new("Advertised size:"));
+    gtk_box_append(GTK_BOX(cap_row), gtk_label_new("ความจุตามกล่อง:"));
     gtk_box_append(GTK_BOX(cap_row), app->claimed_combo);
     gtk_box_append(GTK_BOX(cap_row), app->claimed_spin);
     gtk_box_append(GTK_BOX(cap_row), app->claimed_unit_combo);
@@ -565,23 +565,23 @@ void app_activate(GApplication *gapp, gpointer user_data) {
     gtk_box_append(GTK_BOX(vbox), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
 
     /* write progress */
-    gtk_box_append(GTK_BOX(vbox), section_label("Write Pass"));
+    gtk_box_append(GTK_BOX(vbox), section_label("ขั้นตอนการเขียนข้อมูล"));
     app->write_bar   = gtk_progress_bar_new();
-    app->write_label = gtk_label_new("0 / 0 chunks  —  0.0 MB/s");
+    app->write_label = gtk_label_new("0 / 0 ชิ้นส่วน  —  0.0 MB/s");
     gtk_label_set_xalign(GTK_LABEL(app->write_label), 0.0f);
     gtk_box_append(GTK_BOX(vbox), app->write_bar);
     gtk_box_append(GTK_BOX(vbox), app->write_label);
 
     /* verify progress */
-    gtk_box_append(GTK_BOX(vbox), section_label("Verify Pass"));
+    gtk_box_append(GTK_BOX(vbox), section_label("ขั้นตอนการตรวจสอบข้อมูล"));
     app->verify_bar   = gtk_progress_bar_new();
-    app->verify_label = gtk_label_new("0 / 0 chunks  —  0.0 MB/s");
+    app->verify_label = gtk_label_new("0 / 0 ชิ้นส่วน  —  0.0 MB/s");
     gtk_label_set_xalign(GTK_LABEL(app->verify_label), 0.0f);
     gtk_box_append(GTK_BOX(vbox), app->verify_bar);
     gtk_box_append(GTK_BOX(vbox), app->verify_label);
 
     /* sector map */
-    gtk_box_append(GTK_BOX(vbox), section_label("Chunk Map"));
+    gtk_box_append(GTK_BOX(vbox), section_label("แผนที่ชิ้นส่วน"));
     app->sector_map = gtk_drawing_area_new();
     gtk_widget_set_size_request(app->sector_map, -1, 120);
     gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(app->sector_map),
@@ -590,11 +590,11 @@ void app_activate(GApplication *gapp, gpointer user_data) {
 
     GtkWidget *legend = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(legend),
-        "<span color='#D0D0C8'>■</span> Pending  "
-        "<span color='#4790C2'>■</span> Written  "
+        "<span color='#D0D0C8'>■</span> ยังไม่ได้เขียน  "
+        "<span color='#4790C2'>■</span> ส่วนที่เขียนแล้ว  "
         "<span color='#24A124'>■</span> OK  "
-        "<span color='#CC2E2E'>■</span> Mismatch  "
-        "<span color='#995808'>■</span> Unreadable");
+        "<span color='#CC2E2E'>■</span> ผิดพลาด  "
+        "<span color='#995808'>■</span> อ่านไม่ได้");
     gtk_label_set_xalign(GTK_LABEL(legend), 0.0f);
     gtk_box_append(GTK_BOX(vbox), legend);
     gtk_box_append(GTK_BOX(vbox), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
@@ -609,9 +609,9 @@ void app_activate(GApplication *gapp, gpointer user_data) {
     /* buttons */
     GtkWidget *btn_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_halign(btn_row, GTK_ALIGN_END);
-    app->start_btn  = gtk_button_new_with_label("Start Test");
-    app->cancel_btn = gtk_button_new_with_label("Cancel");
-    app->save_btn   = gtk_button_new_with_label("Save Report");
+    app->start_btn  = gtk_button_new_with_label("เริ่มการทดสอบ");
+    app->cancel_btn = gtk_button_new_with_label("ยกเลิก");
+    app->save_btn   = gtk_button_new_with_label("บันทึกรายงาน");
     gtk_widget_add_css_class(app->start_btn,  "suggested-action");
     gtk_widget_add_css_class(app->cancel_btn, "destructive-action");
     gtk_widget_set_visible(app->cancel_btn, FALSE);
